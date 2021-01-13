@@ -32,3 +32,9 @@ def flatten_size(x, chans):
 
 def intlerp(a, one, other):
     return int(one + a * (other - one))
+
+
+def normalize(x):
+    max, min = x.max(), x.min()
+    return (x - min) / (max - min)
+

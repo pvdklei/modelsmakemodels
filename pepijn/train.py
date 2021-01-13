@@ -96,7 +96,4 @@ def autotrain(model, optimizer, trainloader, testloader, criterion=nn.CrossEntro
                 loss = criterion(out, images)
                 testloss += loss
         print(f"Epoch {epoch}, Validation loss: {testloss}")
-
-        if testloss > lowest_testloss:
-            break
         lowest_testloss = testloss

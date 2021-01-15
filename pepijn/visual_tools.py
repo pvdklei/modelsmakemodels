@@ -3,6 +3,8 @@ import plotly.graph_objects as go
 import torchvision as tv
 import torch 
 import cv2
+from sklearn.manifold import TSNE
+import numpy as np
 
 def show_filters(model, depth=2, tag="conv"):
     """Laat zien hoe alle filters in een convolutional neural network eruit zien.
@@ -58,19 +60,18 @@ def show_feature_repr(model, image, depth=2):
             ax.imshow(img)
         plt.show()
 
-def show_image_channels(image, figsize=(25, 25)):
-    image = image.detach()
-    if len(image.shape) == 3:
-        image = image.unsqueeze(1)
-    elif image.shape[0] == 1:
-        image = torch.transpose(image, (1, 0, 2, 3))
-    else:
-        raise Exception()
-    grid = tv.utils.make_grid(image, scale_each=True, normalize=True, nrow=5).numpy().transpose(1, 2, 0)
+def show_image_channels(image: torch.Tensor, figsize=(25, 25)):
+    """input shape = (c, w, h)"""
+    image = image.detach().cpu()
+    image = image.unsqueeze(1)        
+    grid = tv.utils.make_grid(image, scale_each=True, normalize=True, nrow=5).permute(1, 2, 0)
     plt.figure(figsize=figsize)
     plt.imshow(grid)
     plt.show()
     
+def tSNE(image):
+    tsne = TSNE().fit_transform(image.view(image.shape[0], -1))
+    print(tsne)
     
     
 

@@ -4,7 +4,9 @@ import torchvision as tv
 import torch 
 import cv2
 from sklearn.manifold import TSNE
+import sklearn.decomposition as decomp
 import numpy as np
+import pandas as pd
 
 def show_filters(model, depth=2, tag="conv"):
     """Laat zien hoe alle filters in een convolutional neural network eruit zien.
@@ -69,9 +71,41 @@ def show_image_channels(image: torch.Tensor, figsize=(25, 25)):
     plt.imshow(grid)
     plt.show()
     
-def tSNE(image):
-    tsne = TSNE().fit_transform(image.view(image.shape[0], -1))
-    print(tsne)
-    
-    
+def tSNE(image, d=2):
+    if type(image) == np.ndarray:
+        image = torch.from_numpy(image)
+    image = image.detach().cpu()
+    projection = TSNE(n_components=d).fit_transform(image.view(image.shape[0], -1))  
+    return projection
 
+def PCA(image, d=50):
+    if type(image) == np.ndarray:
+        image = torch.from_numpy(image)
+    image = image.detach().cpu()
+    projection = decomp.PCA(n_components=d).fit_transform(image.view(image.shape[0], -1))
+    return projection
+
+def project2d(image, dpca=50):
+    """PCA to 50 comps followed by t-SNE """
+    image = PCA(image, d=dpca)
+    return tSNE(image)
+
+def plot_labeled(data, labels):
+    data = pd.DataFrame(data, columns=["x", "y"])
+    data["label"] = labels
+    grouped = data.groupby("label")
+    ax = plt.axes()
+    for label, group in grouped:
+        ax.plot(group.x, group.y, "o", label=label)
+    plt.legend()
+    plt.show()
+   
+def plot_labeled_3d(data, labels):
+    data = pd.DataFrame(data, columns="x y z".split())
+    data["label"] = labels
+    grouped = data.groupby("label")
+    ax = plt.axes(projection="3d")
+    for label, group in grouped:
+        ax.scatter(group.x, group.y, group.z, "o", label=label)
+    plt.legend()
+    plt.show()

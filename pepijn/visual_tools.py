@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import torchvision as tv
 import torch 
+from torch import nn, optim
+import utils
 import cv2
 from sklearn.manifold import TSNE
 import sklearn.decomposition as decomp
@@ -109,3 +111,64 @@ def plot_labeled_3d(data, labels):
         ax.scatter(group.x, group.y, group.z, "o", label=label)
     plt.legend()
     plt.show()
+
+def show_image(image, figsize=(12, 12)):
+    """shape = (c, w, h)"""
+    if type(image) == torch.Tensor:
+        image = image.cpu().detach().numpy()
+    image = image.transpose(1, 2, 0)
+    plt.figure(figsize=figsize)
+    plt.imshow(image)
+    plt.show()
+
+def image_that_feature_responds_to_most(model: nn.Module, 
+                                        layern: int, 
+                                        channel: int, 
+                                        size: tuple, 
+                                        lr: float=0.01, 
+                                        iters: int=400):
+
+    assert len(size) == 2
+    
+    noise = torch.rand(1,3, *size, requires_grad=True)
+
+    feature = None
+    def feature_hook(_module, _input, output):
+        nonlocal feature
+        feature = output
+    modules = [module for module in model.children() if type(module) != nn.Sequential]
+    layer = modules[layern]
+    print(f"This will evaluate the features of channel {channel} after layer {layern}: {layer}")
+    hook = layer.register_forward_hook(feature_hook)
+    
+    losses = []
+    x = list(range(iters))
+
+    for i in range(iters):
+        
+        # nomalizing noise image
+        mean = noise.mean()
+        std = noise.std()
+        noise = (noise - mean) / std 
+        noise = noise / 2 + 0.5
+        noise = utils.normalize(noise)
+        
+        # resetting because noise was cloned a couple of times
+        noise = torch.autograd.Variable(noise, requires_grad=True)
+        optimizer = optim.Adam(params=[noise], lr=lr)
+        
+        out = model(noise)
+        optimizer.zero_grad()
+        
+        # the more the feature is highlighed, the better the input image
+        loss = -feature[0, channel].mean()
+        
+        losses.append(loss)
+        loss.backward()
+        optimizer.step()
+
+    plt.plot(x, losses)
+    plt.show()
+    show_image(noise[0])
+
+    hook.remove()

@@ -138,7 +138,13 @@ def image_that_feature_responds_to_most(model: nn.Module,
     zodat de filter/feature in de gegeven layer het meest is opgelicht.
 
     De noise image wordt ook een paar keer vergroot, dus je moet het 'dense' 
-    deel van je model er even afhalen."""
+    deel van je model er even afhalen.
+
+    Voorbeeld: 
+        vgg = torchvision.models.vgg16().features
+        image_that_feature_responds_to_most(vgg, 4, 3, (128, 128)) 
+
+    """
 
     assert len(size) == 2
     

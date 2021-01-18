@@ -18,6 +18,7 @@ def train(model, optimizer, trainloader, testloader, criterion=nn.CrossEntropyLo
     print(device)
 
     lowest_testloss = np.Inf
+    train_losses, test_losses = [], []
 
     for epoch in range(epochs):
 
@@ -32,6 +33,7 @@ def train(model, optimizer, trainloader, testloader, criterion=nn.CrossEntropyLo
             optimizer.step()
             trainloss += loss.item()
         print(f"Epoch {epoch}, Training loss: {trainloss}")
+        train_losses.append(trainloss)
 
         # validation
         testloss = 0
@@ -42,6 +44,7 @@ def train(model, optimizer, trainloader, testloader, criterion=nn.CrossEntropyLo
                 loss = criterion(out, labels)
                 testloss += loss
         print(f"Epoch {epoch}, Validation loss: {testloss}")
+        test_losses.append(testloss)
 
         if testloss > lowest_testloss:
             break
@@ -62,6 +65,7 @@ def train(model, optimizer, trainloader, testloader, criterion=nn.CrossEntropyLo
             n += 1
     totacc /= n
     print(f"The final total accuracy is: {totacc * 100}")
+    return train_losses, test_losses, totacc
 
 
 def autotrain(model, optimizer, trainloader, testloader, criterion=nn.CrossEntropyLoss(), epochs=5):

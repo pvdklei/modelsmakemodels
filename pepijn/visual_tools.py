@@ -130,6 +130,15 @@ def image_that_feature_responds_to_most(model: nn.Module,
                                         iters: int=20,
                                         upscaling_steps=5,
                                         upscaling_factor=1.1):
+    """Algoritme dat uitzoekt op welke input image een bepaalde filter/feature
+    het meest zou reageren. In een model dat gezichten herkent zou een filter 
+    kunnen reageren op ogen, dus dan zou de perfecte input image dus een foto 
+    met heel veel ogen zijn. Deze perfecte image wordt gevonden door met noise 
+    te beginnen, en door middel van gradient descent deze noise aan te passen 
+    zodat de filter/feature in de gegeven layer het meest is opgelicht.
+
+    De noise image wordt ook een paar keer vergroot, dus je moet het 'dense' 
+    deel van je model er even afhalen."""
 
     assert len(size) == 2
     

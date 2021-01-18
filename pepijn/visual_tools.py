@@ -162,7 +162,6 @@ def image_that_feature_responds_to_most(model: nn.Module,
             
             # the more the feature is highlighed, the better the input image
             loss = -feature[0, channel].mean()
-            loss /= size[0] * size[1]
             
             losses.append(loss)
             loss.backward()

@@ -9,6 +9,7 @@ from sklearn.manifold import TSNE
 import sklearn.decomposition as decomp
 import numpy as np
 import pandas as pd
+from torchvision.transforms import functional as FT
 
 def show_filters(model, depth=2, tag="conv"):
     """Laat zien hoe alle filters in een convolutional neural network eruit zien.
@@ -125,8 +126,10 @@ def image_that_feature_responds_to_most(model: nn.Module,
                                         layern: int, 
                                         channel: int, 
                                         size: tuple, 
-                                        lr: float=0.01, 
-                                        iters: int=400):
+                                        lr: float=0.1, 
+                                        iters: int=20,
+                                        upscaling_steps=5,
+                                        upscaling_factor=1.1):
 
     assert len(size) == 2
     
@@ -142,30 +145,46 @@ def image_that_feature_responds_to_most(model: nn.Module,
     hook = layer.register_forward_hook(feature_hook)
     
     losses = []
-    x = list(range(iters))
+    x = list(range(iters * upscaling_steps))
 
-    for i in range(iters):
-        
-        # nomalizing noise image
-        mean = noise.mean()
-        std = noise.std()
-        noise = (noise - mean) / std 
-        noise = noise / 2 + 0.5
-        noise = utils.normalize(noise)
+    print(noise[0,0,0,0])
+
+    for i in range(upscaling_steps):
         
         # resetting because noise was cloned a couple of times
         noise = torch.autograd.Variable(noise, requires_grad=True)
         optimizer = optim.Adam(params=[noise], lr=lr)
-        
-        out = model(noise)
-        optimizer.zero_grad()
-        
-        # the more the feature is highlighed, the better the input image
-        loss = -feature[0, channel].mean()
-        
-        losses.append(loss)
-        loss.backward()
-        optimizer.step()
+
+        for j  in range(iters):
+            
+            out = model(noise)
+            optimizer.zero_grad()
+            
+            # the more the feature is highlighed, the better the input image
+            loss = -feature[0, channel].mean()
+            loss /= size[0] * size[1]
+            
+            losses.append(loss)
+            loss.backward()
+            optimizer.step()
+
+        size = tuple(int(x * upscaling_factor) for x in size)
+        noise = FT.resize(noise, size)
+
+        # nomalizing noise image
+        #mean = noise.mean()
+        #std = noise.std()
+        #noise = (noise - mean) / std 
+        #noise = noise / 2 + 0.5
+        noise = utils.normalize(noise)
+
+    mean = noise.mean()
+    std = noise.std()
+    noise = (noise - mean) / std 
+    noise = noise / 2 + 0.5
+    noise = utils.normalize(noise)
+
+    print(noise[0,0,0,0])
 
     plt.plot(x, losses)
     plt.show()

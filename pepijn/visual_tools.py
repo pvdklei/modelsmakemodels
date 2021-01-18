@@ -142,7 +142,7 @@ def image_that_feature_responds_to_most(model: nn.Module,
 
     Voorbeeld: 
         vgg = torchvision.models.vgg16().features
-        image_that_feature_responds_to_most(vgg, 4, 3, (128, 128)) 
+        image_that_feature_responds_to_most(vgg, 4, 2, (128, 128)) 
 
     """
 

@@ -1,3 +1,13 @@
+import pickle
+
+def save_pickle(obj, filename):
+    with open(filename + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def load_pickle(filename):
+    with open(filename + '.pkl', 'rb') as f:
+        return pickle.load(f)
+
 def _conv_out_shape(og_size, filter_size, stride, padding):
     return int((og_size - filter_size + 2 * padding) / stride) + 1
 

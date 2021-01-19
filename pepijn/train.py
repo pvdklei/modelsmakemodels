@@ -11,7 +11,13 @@ import numpy as np
 import time
 import utils
 
-def train(model, optimizer, trainloader, testloader, criterion=nn.CrossEntropyLoss(), epochs=5):
+def train(model, 
+          optimizer, 
+          trainloader, 
+          testloader, 
+          criterion=nn.CrossEntropyLoss(), 
+          epochs=5, 
+          loaders=None):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -50,6 +56,9 @@ def train(model, optimizer, trainloader, testloader, criterion=nn.CrossEntropyLo
         trainloss = np.mean(trainloss)
         print(f"Epoch {epoch}, Training loss: {trainloss}")
         train_losses.append(trainloss)
+
+        if loaders:
+            trainloader, testloader = loaders()
 
     end_time = time.time()
 
@@ -149,12 +158,13 @@ def compare_training_evals(*paths):
 
 
 class TrainingStats:
-    def __init__(self, train_losses, test_losses, time, title="", descr="", model=None):
-        self.train_losses = trainlosses
-        self.test_losses = testlosses
+    def __init__(self, train_losses, test_losses, accuracy, time, title="", descr="", model=None):
+        self.train_losses = train_losses
+        self.test_losses = test_losses
         self.time = time
         self.title = title
         self.description = descr
+        self.accuracy = accuracy
         self.model = model
     
     @classmethod
@@ -162,6 +172,31 @@ class TrainingStats:
         return cls(train_losses=data["train_losses"],
                    test_losses=data["test_losses"],
                    time=data["time"],
+                   accuracy=data["accuracy"],
                    descr=data["description"])
 
+    @classmethod
+    def from_tuple(cls, data: tuple):
+        return cls(train_losses=data[0],
+                   test_losses=data[1],
+                   time=data[2],
+                   accuracy=data[3])
+ 
 
+    def summary(self):
+        print(f"Title: {self.title}")
+        print(self.description, "\n")
+        print(f"Done training after {round(self.time, 1)} seconds")
+        print(f"A final accuracy of {round(100 * self.accuracy, 1)}%\n\n")
+        x0, x1 = range(len(self.train_losses)), range(len(self.test_losses))
+        plt.plot(x0, self.train_losses, label="Training Loss")
+        plt.plot(x1, self.test_losses, label="Validation Loss")
+        plt.title(self.title)
+        plt.legend()
+        plt.show()
+
+    def add(self, train_losses, test_losses, accuracy, time): 
+        self.train_losses.extend(train_losses)
+        self.test_losses.extend(test_losses)
+        self.time += time
+        self.accuracy = accuracy

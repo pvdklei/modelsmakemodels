@@ -129,7 +129,7 @@ def image_that_feature_responds_to_most(model: nn.Module,
                                         lr: float=0.1, 
                                         iters: int=20,
                                         upscaling_steps=5,
-                                        upscaling_factor=1.1):
+                                        upscaling_factor=1.2):
     """Algoritme dat uitzoekt op welke input image een bepaalde filter/feature
     het meest zou reageren. In een model dat gezichten herkent zou een filter 
     kunnen reageren op ogen, dus dan zou de perfecte input image dus een foto 
@@ -142,14 +142,18 @@ def image_that_feature_responds_to_most(model: nn.Module,
 
     Voorbeeld: 
         vgg = torchvision.models.vgg16(pretrained=True).features
-        image_that_feature_responds_to_most(vgg, 4, 2, (128, 128)) 
+        image_that_feature_responds_to_most(vgg, 30, 23, (128, 128)) 
 
     """
 
     assert len(size) == 2
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Device: ", device)
+    model.to(device)
     
     noise = torch.rand(1,3, *size, requires_grad=True)
-
+    
     feature = None
     def feature_hook(_module, _input, output):
         nonlocal feature
@@ -162,15 +166,18 @@ def image_that_feature_responds_to_most(model: nn.Module,
     losses = []
     x = list(range(iters * upscaling_steps))
 
-    print(noise[0,0,0,0])
-
     for i in range(upscaling_steps):
         
+        # image processing for better results
+        size = tuple(int(x * upscaling_factor) for x in size)
+        noise = FT.gaussian_blur(noise, 3)
+        noise = FT.resize(noise, size)
+
         # resetting because noise was cloned a couple of times
-        noise = torch.autograd.Variable(noise, requires_grad=True)
+        noise = torch.autograd.Variable(noise.to(device), requires_grad=True)
         optimizer = optim.Adam(params=[noise], lr=lr)
 
-        for j  in range(iters):
+        for j in range(iters):
             
             out = model(noise)
             optimizer.zero_grad()
@@ -182,26 +189,56 @@ def image_that_feature_responds_to_most(model: nn.Module,
             loss.backward()
             optimizer.step()
 
-        size = tuple(int(x * upscaling_factor) for x in size)
-        noise = FT.resize(noise, size)
+        with torch.no_grad():
+            noise = utils.normalize(noise)
 
-        # nomalizing noise image
-        #mean = noise.mean()
-        #std = noise.std()
-        #noise = (noise - mean) / std 
-        #noise = noise / 2 + 0.5
-        noise = utils.normalize(noise)
-
-    mean = noise.mean()
-    std = noise.std()
-    noise = (noise - mean) / std 
-    noise = noise / 2 + 0.5
-    noise = utils.normalize(noise)
-
-    print(noise[0,0,0,0])
+        print("Done with upscaling step: ", i)   
 
     plt.plot(x, losses)
     plt.show()
     show_image(noise[0])
 
     hook.remove()
+
+def response_of_features_to_image(image: torch.Tensor,
+                                   model: nn.Module,
+                                   layer_n: int):
+    """Image shape: (c, w, h)"""
+
+    assert len(image.shape) == 3
+    image = image.unsqueeze(0)
+
+    modules = [module for module in model.children() if module is not nn.Sequential()]
+    layer = modules[layer_n]
+
+    print(f"Accessing layer {layer_n}: {layer}")
+
+    features = None
+    def layer_hook(_module, _input, output):
+        nonlocal features
+        features = output
+    layer.register_forward_hook(layer_hook)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device: ", device)
+    model = model.to(device)
+    image = image.to(device)
+
+    model(image)
+
+    activations = features.mean(dim=(0, 2, 3)).detach()
+
+    topk, topi = activations.topk(3)
+    print(f"Largest activations are {topk.tolist()}, at {topi.tolist()}")
+
+    activations = activations.cpu().numpy()
+    x = range(len(activations))
+    plt.bar(x, activations)
+    plt.show()
+
+def read_image(path):
+    image = cv2.imread(path)
+    image = FT.to_tensor(image)
+    return image
+
+    

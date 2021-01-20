@@ -17,7 +17,7 @@ class Training:
                  autotrain=False,
                  train_losses=[], 
                  test_losses=[], 
-                 accuracy=0.0, 
+                 accuracies=[], 
                  time=0.0, 
                  title="", 
                  descr=""):
@@ -26,7 +26,7 @@ class Training:
         self.time = time
         self.title = title
         self.description = descr
-        self.accuracy = accuracy
+        self.accuracies = accuracies
         self.autotrain = autotrain
     
     @classmethod
@@ -34,7 +34,7 @@ class Training:
         return cls(train_losses=data["train_losses"],
                    test_losses=data["test_losses"],
                    time=data["time"],
-                   accuracy=data["accuracy"],
+                   accuracies=[data["accuracy"]],
                    descr=data["description"])
 
     @classmethod
@@ -74,35 +74,28 @@ class Training:
         plt.legend()
         plt.show()
 
-    def add(self, train_losses, test_losses, accuracy, time): 
-        self.train_losses.extend(train_losses)
-        self.test_losses.extend(test_losses)
-        self.time += time
-        self.accuracy = accuracy
-
     def train(self, 
               model, 
-              trainloader, 
-              testloader, 
+              loaders, 
               optimizer=None,
               criterion=nn.CrossEntropyLoss(), 
               epochs=5, 
-              loaders=None):
+              reload_=False):
     
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
     
         if optimizer == None:
             optimizer = optim.Adam(params=model.parameters(), lr=0.001)
-    
+        trainloader, testloader = loaders()
     
         print("Training on: ", device)
-    
-        train_losses, test_losses = [], []
     
         start_time = time.time()
     
         for epoch in range(epochs):
+
+            print(f"New epoch: {epoch}")
     
             # validation
             testloss = []
@@ -113,9 +106,21 @@ class Training:
                     loss = criterion(out, labels)
                     testloss.append(loss.item())
             testloss = np.mean(testloss)
-            print(f"Epoch {epoch}, Validation loss: {round(testloss, 3)}")
-            test_losses.append(testloss)
+            print(f"Validation loss: {round(testloss, 3)}")
     
+            # final accuracy
+            accuracy = []
+            for images, labels in testloader:
+                images, labels = images.to(device), labels.to(device)
+                with torch.no_grad():
+                    out = model(images)
+                    topv, topi = torch.topk(out, 1, dim=1)
+                    labels.resize_(*topi.shape)
+                    eq = topi == labels
+                    acc = torch.mean(eq.type(torch.FloatTensor))
+                    accuracy.append(acc.item())
+            accuracy = np.mean(accuracy)
+            print(f"The accuracy is: {round(accuracy * 100, 1)}%")
     
             # training
             trainloss = []
@@ -131,31 +136,17 @@ class Training:
                 optimizer.step()
                 trainloss.append(loss.item())
             trainloss = np.mean(trainloss)
-            print(f"Epoch {epoch}, Training loss: {round(trainloss, 3)}")
-            train_losses.append(trainloss)
+            print(f"Training loss: {round(trainloss, 3)}")
+
+            self.train_losses.append(trainloss)
+            self.test_losses.append(testloss)
+            self.accuracies.append(accuracy)
     
-            if loaders:
+            if reload_:
                 trainloader, testloader = loaders()
     
         end_time = time.time()
-    
-        # final accuracy
-        totacc = 0
-        n = 0
-        for images, labels in testloader:
-            images, labels = images.to(device), labels.to(device)
-            with torch.no_grad():
-                out = model(images)
-                topv, topi = torch.topk(out, 1, dim=1)
-                labels.resize_(*topi.shape)
-                eq = topi == labels
-                acc = torch.mean(eq.type(torch.FloatTensor))
-                totacc += acc.item()
-                n += 1
-        totacc /= n
-        print(f"The final total accuracy is: {totacc * 100}")
-        self.add(train_losses, test_losses, totacc, end_time - start_time)
-
+        self.time += end_time - start_time 
 
 
 

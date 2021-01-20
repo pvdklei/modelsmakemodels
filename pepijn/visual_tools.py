@@ -65,6 +65,14 @@ def show_feature_repr(model, image, depth=2):
             ax.imshow(img)
         plt.show()
 
+def show_image_batch(images: torch.Tensor, figsize=(25, 20)):
+    """input shape: (b, c, w, h)"""
+    images = images.detach().cpu()
+    grid = tv.utils.make_grid(images, scale_each=True, normalize=True, nrow=5).permute(1, 2, 0)
+    plt.figure(figsize=figsize)
+    plt.imshow(grid)
+    plt.show()
+
 def show_image_channels(image: torch.Tensor, figsize=(25, 25)):
     """input shape = (c, w, h)"""
     image = image.detach().cpu()

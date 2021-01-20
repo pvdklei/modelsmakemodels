@@ -108,24 +108,28 @@ class Training:
                 images, labels = images.to(device), labels.to(device)
                 with torch.no_grad():
                     out = model(images)
-                    loss = criterion(out, labels)
+                    if self.autotrain:
+                        loss = criterion(out, images)
+                    else:
+                        loss = criterion(out, labels)
                     testloss.append(loss.item())
             testloss = np.mean(testloss)
             print(f"Validation loss: {round(testloss, 3)}")
     
             # final accuracy
-            accuracy = []
-            for images, labels in testloader:
-                images, labels = images.to(device), labels.to(device)
-                with torch.no_grad():
-                    out = model(images)
-                    topv, topi = torch.topk(out, 1, dim=1)
-                    labels.resize_(*topi.shape)
-                    eq = topi == labels
-                    acc = torch.mean(eq.type(torch.FloatTensor))
-                    accuracy.append(acc.item())
-            accuracy = np.mean(accuracy)
-            print(f"The accuracy is: {round(accuracy * 100, 1)}%")
+            if not self.autotrain:
+                accuracy = []
+                for images, labels in testloader:
+                    images, labels = images.to(device), labels.to(device)
+                    with torch.no_grad():
+                        out = model(images)
+                        topv, topi = torch.topk(out, 1, dim=1)
+                        labels.resize_(*topi.shape)
+                        eq = topi == labels
+                        acc = torch.mean(eq.type(torch.FloatTensor))
+                        accuracy.append(acc.item())
+                accuracy = np.mean(accuracy)
+                print(f"The accuracy is: {round(accuracy * 100, 1)}%")
     
             # training
             trainloss = []
@@ -145,7 +149,8 @@ class Training:
 
             self.train_losses.append(trainloss)
             self.test_losses.append(testloss)
-            self.accuracies.append(accuracy)
+            if not self.autotrain:
+                self.accuracies.append(accuracy)
     
             if reload_:
                 trainloader, testloader = loaders()

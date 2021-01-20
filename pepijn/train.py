@@ -28,14 +28,18 @@ class Training:
         self.description = descr
         self.accuracies = accuracies
         self.autotrain = autotrain
-    
+
     @classmethod
     def from_dict(cls, data: dict):
-        return cls(train_losses=data["train_losses"],
-                   test_losses=data["test_losses"],
-                   time=data["time"],
-                   accuracies=[data["accuracy"]],
-                   descr=data["description"])
+        return cls(**data)
+    
+    def to_dict(self) -> dict:
+        return dict(test_losses=self.test_losses,
+                    train_losses=self.train_losses,
+                    time=self.time,
+                    accuracies=self.accuracies,
+                    title=self.title,
+                    descr=self.description)
 
     @classmethod
     def load(cls, path):
@@ -48,7 +52,7 @@ class Training:
             raise Exception("Not a valid training stats format found in pickle")
 
     def save(self, path):
-        utils.save_pickle(self, path)
+        utils.save_pickle(self.to_dict(), path)
  
     @staticmethod
     def compare(*trainings):
@@ -66,7 +70,8 @@ class Training:
         print(f"Title: {self.title}")
         print(self.description, "\n")
         print(f"Done training after {round(self.time, 1)} seconds")
-        print(f"A final accuracy of {round(100 * self.accuracy, 1)}%\n\n")
+        if len(self.accuracies) > 0:
+            print(f"A final accuracy of {round(100 * self.accuracies[-1], 1)}%\n\n")
         x0, x1 = range(len(self.train_losses)), range(len(self.test_losses))
         plt.plot(x0, self.train_losses, label="Training Loss")
         plt.plot(x1, self.test_losses, label="Validation Loss")

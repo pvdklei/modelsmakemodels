@@ -66,28 +66,27 @@ def show_image_channels(image: torch.Tensor, figsize=(25, 25), nrow=5):
     plt.show()
     
 
-
-def plot_labeled(data, labels):
-    """Plots 2d data with the color representing the label"""
-    data = pd.DataFrame(data, columns=["x", "y"])
-    data["label"] = labels
-    grouped = data.groupby("label")
-    ax = plt.axes()
-    for label, group in grouped:
-        ax.plot(group.x, group.y, "o", label=label)
-    plt.legend()
-    plt.show()
-   
-def plot_labeled_3d(data, labels):
-    """Plots 3d data with the color representing the label"""
-    data = pd.DataFrame(data, columns="x y z".split())
-    data["label"] = labels
-    grouped = data.groupby("label")
-    ax = plt.axes(projection="3d")
-    for label, group in grouped:
-        ax.scatter(group.x, group.y, group.z, "o", label=label)
-    plt.legend()
-    plt.show()
+def show_side_by_side_loss(original, reconstructed): 
+    batchsize = original.shape[0]
+    original = torch.clip(original, 0, 1).detach().cpu()
+    reconstructed = torch.clip(reconstructed, 0, 1).detach().cpu()
+    for i in range(batchsize):
+        fig, axs = plt.subplots(1, 2, figsize=(10, 20))
+        fig.tight_layout()
+        mseloss = torch.nn.functional.mse_loss(original[i], reconstructed[i])
+        print("The MSE loss is: ", mseloss.item())
+        axs[0].imshow(original[i].permute(1, 2, 0))
+        axs[1].imshow(reconstructed[i].permute(1, 2, 0))
+        axs[0].tick_params(left=False,
+                        bottom=False,
+                        labelleft=False,
+                        labelbottom=False)
+        axs[1].tick_params(left=False,
+                        bottom=False,
+                        labelleft=False,
+                        labelbottom=False)
+        plt.show()
+        print("\n\n\n")
 
 def show_image(image, figsize=(12, 12)):
     """Shows an image with
@@ -222,3 +221,24 @@ def read_image(path):
     return image
 
     
+def plot_labeled(data, labels):
+    """Plots 2d data with the color representing the label"""
+    data = pd.DataFrame(data, columns=["x", "y"])
+    data["label"] = labels
+    grouped = data.groupby("label")
+    ax = plt.axes()
+    for label, group in grouped:
+        ax.plot(group.x, group.y, "o", label=label)
+    plt.legend()
+    plt.show()
+   
+def plot_labeled_3d(data, labels):
+    """Plots 3d data with the color representing the label"""
+    data = pd.DataFrame(data, columns="x y z".split())
+    data["label"] = labels
+    grouped = data.groupby("label")
+    ax = plt.axes(projection="3d")
+    for label, group in grouped:
+        ax.scatter(group.x, group.y, group.z, "o", label=label)
+    plt.legend()
+    plt.show()

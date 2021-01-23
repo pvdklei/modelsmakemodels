@@ -116,7 +116,7 @@ class Training:
             testloss = np.mean(testloss)
             print(f"Validation loss: {round(testloss, 3)}")
     
-            # final accuracy
+            # accuracy
             if not self.autotrain:
                 accuracy = []
                 for images, labels in testloader:
@@ -147,11 +147,17 @@ class Training:
             trainloss = np.mean(trainloss)
             print(f"Training loss: {round(trainloss, 3)}")
 
+            # store epoch data
             self.train_losses.append(trainloss)
             self.test_losses.append(testloss)
             if not self.autotrain:
                 self.accuracies.append(accuracy)
-    
+
+            # save model if it's the best 
+            if min(self.test_losses) > testloss:
+                utils.save_pickle(model, "model")    
+            
+            # reload image loaders, so the transforms are done again 
             if reload_:
                 trainloader, testloader = loaders()
     

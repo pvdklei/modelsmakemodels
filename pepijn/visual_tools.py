@@ -67,6 +67,8 @@ def show_image_channels(image: torch.Tensor, figsize=(25, 25), nrow=5):
     
 
 def show_side_by_side_loss(original, reconstructed): 
+    """Shows two images side by side, and shows the
+    MSE loss above it. Usefull for autoencoder validation"""
     batchsize = original.shape[0]
     original = torch.clip(original, 0, 1).detach().cpu()
     reconstructed = torch.clip(reconstructed, 0, 1).detach().cpu()

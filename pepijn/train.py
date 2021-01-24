@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 import utils
+from matplotlib.lines import Line2D
+from collections import OrderedDict
 
 
 class Training:
@@ -47,6 +49,8 @@ class Training:
     @classmethod
     def load(cls, path):
         """Loads a saved Training"""
+        if path.endswith(".pkl"):
+            path = path[:-4]
         data = utils.load_pickle(path)
         if type(data) == dict:
             return cls.from_dict(data)
@@ -60,13 +64,12 @@ class Training:
         utils.save_pickle(self.to_dict(), path)
  
     @staticmethod
-    def _plot_comparisons(*trainings, color=None):
-        for training in trainings:
-            x = range(len(training.test_losses))
-            acc = round(max(training.accuracies)*100, 1)
-            time = round(training.time, 1)
-            label = f"{training.title} ({acc}% in {time}s)"
-            plt.plot(x, training.test_losses, label=label, color=color)
+    def _plot_training(training, color=None, stroke="-"):
+        x = range(len(training.test_losses))
+        acc = round(max(training.accuracies)*100, 1)
+        time = round(training.time, 1)
+        label = f"{training.title}"
+        plt.plot(x, training.test_losses, label=label, color=color, linestyle=stroke)
 
     @classmethod
     def compare(cls, *trainings, max_epoch=10):
@@ -90,22 +93,43 @@ class Training:
         
         """
 
+        colors = plt.rcParams['axes.prop_cycle'].by_key()['color'] # gets all default colors of plt
+        linestyles = ['-', '--', '-.', ':']
+        lines = [] # for the legend
+
         plt.figure(figsize=(10, 7))
-        ty = type(trainings[0])
-        if ty == cls:
-            cls._plot_comparisons(*trainings)
-        elif ty == list:
-            colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-            for i, tlist in enumerate(trainings):
-                color = colors[i]
-                cls._plot_comparisons(*tlist, color=color)
-        else:
-            raise Exception("Not a valid input type (either list or list of lists)")
+        
+        for i, el in enumerate(trainings):
+            color = colors[i]
+            if type(el) == cls:
+                cls._plot_training(el, color=color)
+            elif type(el) == list:
+                for j, el_ in enumerate(el):
+                    if type(el_) == cls:
+                        cls._plot_training(el_, color=color)
+                    elif type(el_) == list:
+                        stroke = linestyles[j]
+                        for el__ in el_:
+                            if type(el__) == cls:
+                                cls._plot_training(el__, color=color, stroke=stroke)
+                            elif type(el__) == list: 
+                                raise Exception("List in list in list is not allowed")
+                            else:
+                                raise Exception("Pass a Training instance")
+                    else: 
+                        raise Exception("You must either provide a Training instance or a list of them")
+            else: 
+                raise Exception("You must either provide a Training instance or a list of them")
 
         plt.xlim(0, max_epoch)
         plt.ylabel("Test Loss")
         plt.xlabel("Epoch")
-        plt.legend(loc="upper right")
+
+        # remove duplicate legend names 
+        handles, labels = plt.gca().get_legend_handles_labels()
+        by_label = OrderedDict(zip(labels, handles))
+        plt.legend(by_label.values(), by_label.keys(), loc="upper right")
+        
         plt.show()
     
 
@@ -125,7 +149,7 @@ class Training:
         plt.show()
 
     def train(self, 
-              model: torch.Module, 
+              model: nn.Module, 
               loaders, 
               optimizer: optim.Optimizer=None,
               criterion=nn.CrossEntropyLoss(), 

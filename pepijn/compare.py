@@ -1,25 +1,28 @@
 import train
 import utils
+import os
+from pprint import pprint
 
-base = "./comparisons/alexnet_cifar10_classification/"
-filess = [["alexnet_transfer_body_frozen",
-         "alexnet_transfer_body_frozen_1"],
-         ["alexnet_transfer_final_conv_and_head_trained",
-         "alexnet_transfer_final_conv_and_head_trained_1"],
-         ["alexnet_transfer_fully_trained",
-         "alexnet_transfer_fully_trained_1",
-         "alexnet_transfer_fully_trained_2"]]
-trainings = []
-a = base + "alexnet_transfer_body_frozen_1"
-training = train.Training.load(a)
-training.title = "AlexNet transfer learning body frozen (CIFAR10)"
-training.save(a)
-for files in filess:
-    sessions = []
-    for f in files:
-        path = base + f
-        training = train.Training.load(path)
-        sessions.append(training)
-    trainings.append(sessions)
 
-train.Training.compare(*trainings)
+def recur_dir(directory: str):
+    store = []
+    directory = directory.rstrip("/")
+    for name in os.listdir(directory):
+        if name.startswith("."):
+            continue
+        name = directory + "/" + name
+        if os.path.isdir(name):
+            substore = recur_dir(name)
+            store.append(substore)
+        elif os.path.isfile(name):
+            training = train.Training.load(name)
+            store.append(training)
+    return store
+
+
+directory = "./comparisons/alexnet_cifar10_classification/"
+store = recur_dir(directory)
+for i in store:
+    pprint(i)
+    print("\n\n\n")
+train.Training.compare(*store, max_epoch=20)

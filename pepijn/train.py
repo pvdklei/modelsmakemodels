@@ -31,6 +31,9 @@ class Training:
 
     @classmethod
     def from_dict(cls, data: dict):
+        if "accuracy" in data.keys():
+            acc = data.pop("accuracy")
+            data["accuracies"] = [acc]
         return cls(**data)
     
     def to_dict(self) -> dict:
@@ -43,6 +46,7 @@ class Training:
 
     @classmethod
     def load(cls, path):
+        """Loads a saved Training"""
         data = utils.load_pickle(path)
         if type(data) == dict:
             return cls.from_dict(data)
@@ -52,21 +56,62 @@ class Training:
             raise Exception("Not a valid training stats format found in pickle")
 
     def save(self, path):
+        """Saved a Training instance, so it can be loaded later"""
         utils.save_pickle(self.to_dict(), path)
  
     @staticmethod
-    def compare(*trainings):
+    def _plot_comparisons(*trainings, color=None):
         for training in trainings:
             x = range(len(training.test_losses))
-            acc = round(training.accuracy*100, 1)
+            acc = round(max(training.accuracies)*100, 1)
             time = round(training.time, 1)
-            label = f"{training.title} ({acc}% in {time}s"
-            plt.plot(x, training.testlosses, label=label)
-        plt.legend()
+            label = f"{training.title} ({acc}% in {time}s)"
+            plt.plot(x, training.test_losses, label=label, color=color)
+
+    @classmethod
+    def compare(cls, *trainings, max_epoch=10):
+        """Similar to summary, but lets you compare multiple training
+        sessions based on their test-loss through visuals.
+
+        If the trainings are Training instances, they will all be 
+        plotted with a different color. 
+
+        If the trainings are lists of Training, every list will have 
+        the same color in the plot.
+
+        If the trainings are lists of lists of Trainings, the first
+        list division will give different colors, and the second
+        a different type of stroke.
+
+        Example: 
+            Training.compare(t1, t2, t3, ...) # all different colors
+            Training.compare([t1, t2], [t3, t4], ...) # t1 and t2 have same color 
+            Training.compare([[t1, t2], [t1, t2]], ...) # all same color, t1 and t2 same stroke
+        
+        """
+
+        plt.figure(figsize=(10, 7))
+        ty = type(trainings[0])
+        if ty == cls:
+            cls._plot_comparisons(*trainings)
+        elif ty == list:
+            colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+            for i, tlist in enumerate(trainings):
+                color = colors[i]
+                cls._plot_comparisons(*tlist, color=color)
+        else:
+            raise Exception("Not a valid input type (either list or list of lists)")
+
+        plt.xlim(0, max_epoch)
+        plt.ylabel("Test Loss")
+        plt.xlabel("Epoch")
+        plt.legend(loc="upper right")
         plt.show()
     
 
     def summary(self):
+        """Shows a summary of the training session, including loss-plots"""
+
         print(f"Title: {self.title}")
         print(self.description, "\n")
         print(f"Done training after {round(self.time, 1)} seconds")
@@ -80,12 +125,22 @@ class Training:
         plt.show()
 
     def train(self, 
-              model, 
+              model: torch.Module, 
               loaders, 
-              optimizer=None,
+              optimizer: optim.Optimizer=None,
               criterion=nn.CrossEntropyLoss(), 
               epochs=5, 
               reload_=False):
+        """Trains a given model based on the provided settings and saves
+        statistics. Also provides nice metrics during training.
+
+        Note: 
+            'loader' must be a function returning two torchvision.DataLoader
+            instances, with the first one being the trainloader, and the 
+            second being the validation loader. If 'reload_' is set
+            to True, the loaders are remade by calling the function. This
+            can be usefull for redoing random transformation to stimulate
+            generalization."""
     
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
@@ -96,9 +151,10 @@ class Training:
     
         print("Training on: ", device)
     
-        start_time = time.time()
     
         for epoch in range(epochs):
+
+            start_time = time.time()
 
             print(f"New epoch: {epoch}")
     
@@ -155,16 +211,15 @@ class Training:
 
             # save model if it's the best 
             if min(self.test_losses) > testloss:
-                utils.save_pickle(model, "model")    
-            
+                utils.save_pickle(model, "model")     
+
+            end_time = time.time()
+            self.time += end_time - start_time 
+
             # reload image loaders, so the transforms are done again 
             if reload_:
                 trainloader, testloader = loaders()
     
-        end_time = time.time()
-        self.time += end_time - start_time 
-
-
 
 
 

@@ -1,4 +1,4 @@
-
+# import libraries and packages
 
 import torch
 from torch import nn, optim
@@ -13,6 +13,7 @@ import utils
 from matplotlib.lines import Line2D
 from collections import OrderedDict
 
+# create training class
 
 class Training:
     def __init__(self, 
@@ -243,7 +244,88 @@ class Training:
             # reload image loaders, so the transforms are done again 
             if reload_:
                 trainloader, testloader = loaders()
+    def denoise_train(self, 
+              model, 
+              loaders, 
+              optimizer=None,
+              criterion=nn.CrossEntropyLoss(), noise_type='gaussian',
+              epochs=5, 
+              reload_=False):
     
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.to(device)
+    
+        if optimizer == None:
+            optimizer = optim.Adam(params=model.parameters(), lr=0.001)
+        trainloader, testloader = loaders()
+    
+        print("Training on: ", device)
+    
+        start_time = time.time()
+    
+        for epoch in range(epochs):
+
+            print(f"New epoch: {epoch}")
+    
+            # validation
+            testloss = []
+            for images, labels in testloader:
+                noise_img = random_noise(images, mode=noise_type, mean=0, var=0.05, clip=True)
+                noise_img = torch.Tensor(noise_img)
+                images, labels, noise_img = images.to(device), labels.to(device), noise_img.to(device)
+                with torch.no_grad():
+                    out = model(noise_img)
+                    if self.autotrain:
+                        loss = criterion(out, images)
+                    else:
+                        loss = criterion(out, labels)
+                    testloss.append(loss.item())
+            testloss = np.mean(testloss)
+            print(f"Validation loss: {round(testloss, 3)}")
+    
+            # final accuracy
+            if not self.autotrain:
+                accuracy = []
+                for images, labels in testloader:
+                    images, labels = images.to(device), labels.to(device)
+                    with torch.no_grad():
+                        out = model(images)
+                        topv, topi = torch.topk(out, 1, dim=1)
+                        labels.resize_(*topi.shape)
+                        eq = topi == labels
+                        acc = torch.mean(eq.type(torch.FloatTensor))
+                        accuracy.append(acc.item())
+                accuracy = np.mean(accuracy)
+                print(f"The accuracy is: {round(accuracy * 100, 1)}%")
+    
+            # training
+            trainloss = []
+            for images, labels in trainloader:
+                noise_img = random_noise(images, mode=noise_type, mean=0, var=0.05, clip=True)
+                noise_img = torch.Tensor(noise_img)
+                images, labels, noise_img = images.to(device), labels.to(device), noise_img.to(device)
+                optimizer.zero_grad()
+                out = model(noise_img)
+                if self.autotrain:
+                    loss = criterion(out, images)
+                else:
+                    loss = criterion(out, labels)
+                loss.backward()
+                optimizer.step()
+                trainloss.append(loss.item())
+            trainloss = np.mean(trainloss)
+            print(f"Training loss: {round(trainloss, 3)}")
+
+            self.train_losses.append(trainloss)
+            self.test_losses.append(testloss)
+            if not self.autotrain:
+                self.accuracies.append(accuracy)
+    
+            if reload_:
+                trainloader, testloader = loaders()
+    
+        end_time = time.time()
+        self.time += end_time - start_time 
 
 
 

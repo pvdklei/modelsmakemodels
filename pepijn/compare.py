@@ -5,7 +5,7 @@ from pprint import pprint
 
 
 def recur_dir(directory: str):
-    store = []
+    data = []
     directory = directory.rstrip("/")
     for name in os.listdir(directory):
         if name.startswith("."):
@@ -13,16 +13,15 @@ def recur_dir(directory: str):
         name = directory + "/" + name
         if os.path.isdir(name):
             substore = recur_dir(name)
-            store.append(substore)
+            data.append(substore)
         elif os.path.isfile(name):
             training = train.Training.load(name)
-            store.append(training)
-    return store
+            training.title = directory[len(homedirectory):]
+            data.append(training)
+    return data
 
 
-directory = "./comparisons/alexnet_cifar10_classification/"
-store = recur_dir(directory)
-for i in store:
-    pprint(i)
-    print("\n\n\n")
-train.Training.compare(*store, max_epoch=20)
+homedirectory = "./comparisons/alexnet_cifar10_classification/"
+data = recur_dir(homedirectory)
+train.Training.compare(*data, max_epoch=17, metric="accuracy")
+train.Training.compare(*data, max_epoch=17, metric="test_loss")

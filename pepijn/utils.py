@@ -87,8 +87,9 @@ def PCA(images, d=50):
 
 def project2d(images, dpca=50):
     """PCA to 50 comps followed by t-SNE """
-    size = tensor_size(images)
-    comps = dpca if dpca < images.shape[0] else images.shape[0]-1
+    shape = images.shape
+    lowest = shape[0] if shape[0] < shape[1] else shape[1]
+    comps = dpca if dpca < lowest else lowest-1
     images = PCA(images, d=comps)
     return tSNE(images)
 

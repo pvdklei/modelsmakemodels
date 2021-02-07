@@ -64,15 +64,20 @@ class Training:
         utils.save_pickle(self.to_dict(), path)
  
     @staticmethod
-    def _plot_training(training, color=None, stroke="-"):
+    def _plot_training(training, color=None, stroke="-", metric="test_loss"):
         x = range(len(training.test_losses))
-        acc = round(max(training.accuracies)*100, 1)
-        time = round(training.time, 1)
-        label = f"{training.title}"
-        plt.plot(x, training.test_losses, label=label, color=color, linestyle=stroke)
+        if metric == "test_loss":
+            y = training.test_losses
+        elif metric == "accuracy":
+            y = training.accuracies
+        elif metric == "train_loss":
+            y = training.train_losses
+        else: 
+            raise Exception("Metric must be test_loss, train_loss or accuracy")
+        plt.plot(x, y, label=training.title, color=color, linestyle=stroke)
 
     @classmethod
-    def compare(cls, *trainings, max_epoch=10):
+    def compare(cls, *trainings, max_epoch=10, metric="test_loss"):
         """Similar to summary, but lets you compare multiple training
         sessions based on their test-loss through visuals.
 
@@ -102,16 +107,16 @@ class Training:
         for i, el in enumerate(trainings):
             color = colors[i]
             if type(el) == cls:
-                cls._plot_training(el, color=color)
+                cls._plot_training(el, color=color, metric=metric)
             elif type(el) == list:
                 for j, el_ in enumerate(el):
                     if type(el_) == cls:
-                        cls._plot_training(el_, color=color)
+                        cls._plot_training(el_, color=color, metric=metric)
                     elif type(el_) == list:
                         stroke = linestyles[j]
                         for el__ in el_:
                             if type(el__) == cls:
-                                cls._plot_training(el__, color=color, stroke=stroke)
+                                cls._plot_training(el__, color=color, stroke=stroke, metric=metric)
                             elif type(el__) == list: 
                                 raise Exception("List in list in list is not allowed")
                             else:
@@ -121,14 +126,22 @@ class Training:
             else: 
                 raise Exception("You must either provide a Training instance or a list of them")
 
+        ylabel = "Unknown"
+        if metric == "test_loss":
+            ylabel = "Validation Loss"
+        elif metric == "accuracy":
+            ylabel = "Validation Accuracy"
+        elif metric == "train_loss":
+            ylabel = "Training Loss"
         plt.xlim(0, max_epoch)
-        plt.ylabel("Test Loss")
+        plt.ylabel(ylabel)
         plt.xlabel("Epoch")
 
         # remove duplicate legend names 
         handles, labels = plt.gca().get_legend_handles_labels()
         by_label = OrderedDict(zip(labels, handles))
-        plt.legend(by_label.values(), by_label.keys(), loc="upper right")
+        loc = "upper right" if not metric == "accuracy" else "lower right"
+        plt.legend(by_label.values(), by_label.keys(), loc=loc)
         
         plt.show()
     
